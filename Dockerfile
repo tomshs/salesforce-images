@@ -1,13 +1,13 @@
 
 # Beispiel: Node.js
-FROM node:20-alpine AS build
+FROM dhi.io/node24 AS build
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci --only=production
 COPY . .
 RUN npm run build || echo "no build step, continue"
 
-FROM node:20-alpine
+FROM dhi.io/node24
 WORKDIR /app
 COPY --from=build /app ./
 EXPOSE 3000
