@@ -1,7 +1,7 @@
 
 # Basis: aktuelles offizielles Node-Image
 FROM node:latest
-
+WORKDIR $HOME
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Grundpakete: git (für sfdx-git-delta), curl, gpg, ca-certificates
