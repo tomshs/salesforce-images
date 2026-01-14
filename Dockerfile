@@ -1,38 +1,52 @@
 
-# Basis: aktuelles offizielles Node-Image (enthält npm)
+# Basis: aktuelles offizielles Node-Image
 FROM node:latest
 
-# Optional: noninteractive für apt
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Systempakete: git (Pflicht für sfdx-git-delta) und ca-certificates
-# Außerdem: bash-completion optional hilfreich, clean-up für kleinere Images
+# Grundpakete: git (für sfdx-git-delta), curl, gpg, ca-certificates
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
-      git \
-      ca-certificates \
-      bash-completion \
+      git curl gpg ca-certificates bash-completion \
  && rm -rf /var/lib/apt/lists/*
 
-# Salesforce CLI global via npm installieren (neueste Version)
-# Hinweis: Installation über npm ist von Salesforce dokumentiert
+# Salesforce CLI via npm (aktuelle Version)
+# -> Offiziell dokumentiert, gut für Container/CI
 RUN npm install -g @salesforce/cli
-
-# (Empfohlen) Updates der CLI nicht automatisch im Container anstoßen
 ENV SF_AUTOUPDATE_DISABLE=true
 
-# Git-Delta-Plugin für Salesforce CLI installieren
-# Das Plugin heißt "sfdx-git-delta" und wird via "sf plugins install" eingebunden
+# --- Java 21 (Temurin 21 JDK) hinzufügen ---
+# Adoptium/Temurin APT-Repo einbinden und temurin-21-jdk installieren
+# Funktioniert auf Debian/Ubuntu-Basisimages (Node:latest basiert i.d.R. auf Debian)
+RUN set -eux; \
+    arch=$(dpkg --print-architecture); \
+    mkdir -p /etc/apt/keyrings; \
+    curl -fsSL https://packages.adoptium.net/artifactory/api/gpg/key/public \
+      | gpg --dearmor -o /etc/apt/keyrings/adoptium.gpg; \
+    echo "deb [signed-by=/etc/apt/keyrings/adoptium.gpg] https://packages.adoptium.net/artifactory/deb $(. /etc/os-release && echo $VERSION_CODENAME) main" \
+      > /etc/apt/sources.list.d/adoptium.list; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends temurin-21-jdk; \
+    rm -rf /var/lib/apt/lists/*
+
+# Java-Umgebung (optional, oft nicht nötig, aber hilfreich)
+ENV JAVA_HOME=/usr/lib/jvm/temurin-21-jdk-amd64
+ENV PATH="${JAVA_HOME}/bin:${PATH}"
+
+# --- Salesforce-Plugins installieren ---
+
+# 1) Git Delta Plugin (delta deployments)
 RUN sf plugins install sfdx-git-delta || \
-    (echo "Plugin ist unsigniert – Installation wird erzwungen" && printf "y\n" | sf plugins install sfdx-git-delta)
+    (printf "y\n" | sf plugins install sfdx-git-delta)
 
-# Verifizieren (optional):
-# - sf Version
-# - installiertes Plugin
-RUN sf --version && sf plugins
+# 2) Salesforce Code Analyzer (aka sfdx-scanner)
+RUN sf plugins install @salesforce/sfdx-scanner
 
-# Standard-Workdir
+# Verifikation (optional): Versionen & Plugins anzeigen
+RUN sf --version && java -version && sf plugins
+
+# Arbeitsverzeichnis
 WORKDIR /workspace
 
-# Standardbefehl: Shell (kann in CI überschrieben werden)
+# Standard-CMD
 CMD [ "bash" ]
