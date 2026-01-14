@@ -13,7 +13,8 @@ RUN apt-get update \
 # Salesforce CLI via npm (aktuelle Version)
 # -> Offiziell dokumentiert, gut für Container/CI
 RUN npm install -g @salesforce/cli
-ENV SF_AUTOUPDATE_DISABLE=true
+ENV SF_AUTOUPDATE_DISABLE=true            
+ENV SFDX_DISABLE_AUTOUPDATE=true
 
 # --- Java 21 (Temurin 21 JDK) hinzufügen ---
 # Adoptium/Temurin APT-Repo einbinden und temurin-21-jdk installieren
